@@ -133,6 +133,7 @@ async function detail(id) {
     const detail = $('ul.moviedteail_list > li');
     let vod = {
         vod_id: id,
+        vod_name: $('div.moviedteail_tt > h1').text().trim(),
         vod_pic: $('div.dyimg img:first').attr('src'),
         vod_remarks: '',
         vod_content: stripHtmlTag($('div.yp_context').html()).trim(),
