@@ -53,6 +53,7 @@ async function init(cfg) {
     siteKey = cfg.skey;
     siteType = cfg.stype;
     let extend = cfg.ext;
+    
     if (cfg.ext.hasOwnProperty('categories')) extend = cfg.ext.categories;
     if (cfg.ext.hasOwnProperty('cookie')) cookie = cfg.ext.cookie;
     if (_.isEmpty(cookie)) await getCookie();
@@ -133,7 +134,7 @@ async function homeVod() {
                 imageUrl = 'https:' + imageUrl;
             }
 
-            vod.vod_id = item.bvid;
+            vod.vod_id = item.bvid + "@" + item.aid;
             vod.vod_name = removeTags(item.title);
             vod.vod_pic = imageUrl;
             vod.vod_remarks = item.duration.split(':')[0] + '分钟';
@@ -179,7 +180,7 @@ async function category(tid, page, filter, ext) {
                 pic = 'https:' + pic;
             }
 
-            video.vod_id = item.bvid;
+            video.vod_id = item.bvid + "@" + item.aid;
             video.vod_name = removeTags(item.title);
             video.vod_pic = pic;
             video.vod_remarks = item.duration.split(':')[0] + '分钟';
@@ -201,12 +202,8 @@ async function category(tid, page, filter, ext) {
 
 async function detail(ids) {
     try {
-        const bvid = ids;
-        const bvid2aidUrl = `https://api.bilibili.com/x/web-interface/archive/stat?bvid=${bvid}`;
-
-        const bvid2aidResp = JSON.parse(await request(bvid2aidUrl, getHeaders()));
-
-        const aid = bvid2aidResp.data.aid + '';
+        const bvid = ids.split("@")[0];
+        const aid = ids.split("@")[1];
         const detailUrl = `https://api.bilibili.com/x/web-interface/view?aid=${aid}`;
         const detailData = JSON.parse(await request(detailUrl, getHeaders())).data;
 
@@ -253,7 +250,7 @@ async function detail(ids) {
             playList.push(playUrl);
         }
 
-        video.vod_play_from = 'external$$$dash$$$mp4';
+        video.vod_play_from = 'dash$$$mp4'; //removed external
         video.vod_play_url = playList.join('#');
         video.vod_play_url = [video.vod_play_url, video.vod_play_url, video.vod_play_url].join('$$$');
 
