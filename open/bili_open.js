@@ -138,6 +138,10 @@ async function homeVod() {
             vod.vod_name = removeTags(item.title);
             vod.vod_pic = imageUrl;
             vod.vod_remarks = item.duration.split(':')[0] + '分钟';
+            vod.style= {
+                type: 'rect',
+                ratio: 1.78,
+            },
             list.push(vod);
         }
 
@@ -184,6 +188,10 @@ async function category(tid, page, filter, ext) {
             video.vod_name = removeTags(item.title);
             video.vod_pic = pic;
             video.vod_remarks = item.duration.split(':')[0] + '分钟';
+            video.style= {
+                type: 'rect',
+                ratio: 1.78,
+            },
             videos.push(video);
         }
 
