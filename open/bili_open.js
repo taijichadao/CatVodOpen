@@ -53,7 +53,7 @@ async function init(cfg) {
     siteKey = cfg.skey;
     siteType = cfg.stype;
     let extend = cfg.ext;
-    
+
     if (cfg.ext.hasOwnProperty('categories')) extend = cfg.ext.categories;
     if (cfg.ext.hasOwnProperty('cookie')) cookie = cfg.ext.cookie;
     if (_.isEmpty(cookie)) await getCookie();
@@ -138,16 +138,16 @@ async function homeVod() {
             vod.vod_name = removeTags(item.title);
             vod.vod_pic = imageUrl;
             vod.vod_remarks = item.duration.split(':')[0] + '分钟';
-            vod.style= {
+            vod.style = {
                 type: 'rect',
                 ratio: 1.78,
-            },
+            }
             list.push(vod);
         }
 
         const result = { list: list };
         return JSON.stringify(result);
-    } catch (e) {}
+    } catch (e) { }
 }
 
 async function category(tid, page, filter, ext) {
@@ -188,10 +188,10 @@ async function category(tid, page, filter, ext) {
             video.vod_name = removeTags(item.title);
             video.vod_pic = pic;
             video.vod_remarks = item.duration.split(':')[0] + '分钟';
-            video.style= {
+            video.style = {
                 type: 'rect',
                 ratio: 1.78,
-            },
+            }
             videos.push(video);
         }
 
@@ -204,7 +204,7 @@ async function category(tid, page, filter, ext) {
         };
 
         return JSON.stringify(result);
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -265,7 +265,7 @@ async function detail(ids) {
         const list = [video];
         const result = { list };
         return JSON.stringify(result);
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -352,7 +352,7 @@ async function play(flag, id, flags) {
                 header: playHeaders,
             });
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -378,7 +378,7 @@ async function search(key, quick, pg) {
             list: videos,
         };
         return JSON.stringify(result);
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
