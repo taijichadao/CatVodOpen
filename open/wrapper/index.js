@@ -1,7 +1,7 @@
 // !!!!! Do not use in release mode. Just a native inject fake wrapper for test spider. !!!!!
 // !!!!! Do not use in release mode. Just a native inject fake wrapper for test spider. !!!!!
 // !!!!! Do not use in release mode. Just a native inject fake wrapper for test spider. !!!!!
-import axios from 'axios';
+import axios, { toFormData } from 'axios';
 import crypto from 'crypto';
 import https from 'https';
 import fs from 'node:fs';
@@ -44,6 +44,7 @@ async function request(url, opt) {
         var postType = opt ? opt.postType || null : null;
         var returnBuffer = opt ? opt.buffer || 0 : 0;
         var timeout = opt ? opt.timeout || 5000 : 5000;
+        var redirect = (opt ? opt.redirect || 1 : 1) == 1;
 
         var headers = opt ? opt.headers || {} : {};
         if (postType == 'form') {
@@ -52,6 +53,9 @@ async function request(url, opt) {
             if (data != null) {
                 data = qs.stringify(data, { encode: false });
             }
+        } else if (postType == 'form-data') {
+            headers['Content-Type'] = 'multipart/form-data';
+            data = toFormData(data);
         }
         let respType = returnBuffer == 1 || returnBuffer == 2 ? 'arraybuffer' : undefined;
         var resp = await axios(url, {
@@ -60,6 +64,7 @@ async function request(url, opt) {
             headers: headers,
             data: data,
             timeout: timeout,
+            maxRedirects: !redirect ? 0 : null,
             httpsAgent: https.Agent({
                 rejectUnauthorized: false,
             }),
@@ -80,6 +85,20 @@ async function request(url, opt) {
             return { code: resp.status, headers: resHeader, content: data };
         } else if (returnBuffer == 2) {
             return { code: resp.status, headers: resHeader, content: data.toString('base64') };
+        } else if (returnBuffer == 3) {
+            var stream = opt.stream;
+            if (stream['onResp']) await stream['onResp']({ code: resp.status, headers: resHeader });
+            if (stream['onData']) {
+                data.on('data', async (data) => {
+                    await stream['onData'](data);
+                });
+                data.on('end', async () => {
+                    if (stream['onDone']) await stream['onDone']();
+                });
+            } else {
+                if (stream['onDone']) await stream['onDone']();
+            }
+            return 'stream...';
         }
         return { code: resp.status, headers: resHeader, content: data };
     } catch (error) {
@@ -248,6 +267,155 @@ globalThis.aesX = aes;
 globalThis.desX = des;
 
 globalThis.req = request;
+
+
+/**
+ * Constructor for the JSProxyStream class.
+ *
+ * @constructor
+ */
+globalThis.JSProxyStream = function () {
+    /**
+     * Set proxy stream http code & headers
+     *
+     * @param {Number} code - http status code
+     * @param {Map} headers - http response headers
+     */
+    this.head = async function (code, headers) {};
+    /**
+     * Writes the given buffer.
+     *
+     * @param {ArrayBuffer} buf - the buffer to write
+     * @return {Number} 1 if the write was successful, 0 stream read is paused, -1 strean was closed
+     */
+    this.write = async function (buf) {
+        return 1;
+    };
+    /**
+     * Stream will be closed.
+     */
+    this.done = async function () {};
+    /**
+     * Stream will be closed cause by error happened.
+     */
+    this.error = async function (err) {};
+};
+
+/**
+ * Creates a new JSFile object with the specified path.
+ *
+ * @param {string} path - The path to the file.
+ * @return {JSFile} - The JSFile object.
+ */
+globalThis.JSFile = function (path) {
+    this._path = path;
+    this.fd = null;
+    /**
+     * Returns the raw path of the object.
+     *
+     * @return {string}  The raw path of the file. Runtime path is not same with _path.
+     */
+    this.path = async function () {
+        return this._path;
+    };
+    /**
+     * Opens a file with the specified mode.
+     *
+     * @param {string} mode - The mode in which to open the file. Can be 'r' for read, 'w' for write, or 'a' for append.
+     * @return {boolean} Returns true if the file was successfully opened, false otherwise.
+     */
+    this.open = async function (mode) {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.open(file._path, mode, null, (e, f) => {
+                if (!e) file.fd = f;
+                if (file.fd) resolve(true);
+                else resolve(false);
+            });
+        });
+    };
+
+    /**
+     * Reads data from a file asynchronously.
+     *
+     * @param {number} length - The number of bytes to read.
+     * @param {number} position - The position in the file to start reading from.
+     * @return {ArrayBuffer} The data read from the file.
+     */
+    this.read = async function (length, position) {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            let arraybuffer = new ArrayBuffer(length);
+            let arr = new Int8Array(arraybuffer);
+            fs.read(file.fd, arr, 0, length, position, (err, bytesRead, buffer) => {
+                if (length > bytesRead) {
+                    arraybuffer = buffer.slice(0, bytesRead).buffer;
+                }
+                resolve(arraybuffer);
+            });
+        });
+    };
+
+    /**
+     * Writes data from an ArrayBuffer to a file at a given position.
+     *
+     * @param {ArrayBuffer} arraybuffer - The ArrayBuffer containing the data to write.
+     * @param {number} position - The position within the file to start writing.
+     * @return {boolean} Returns true if the write operation was successful.
+     */
+    this.write = async function (arraybuffer, position) {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.write(file.fd, new Int8Array(arraybuffer), 0, arraybuffer.byteLength, position, (err, written, buffer) => {
+                if (!err) resolve(true);
+                else resolve(false);
+            });
+        });
+    };
+
+    /**
+     * Closes the file descriptor.
+     *
+     * @return {Promise<void>} A promise that resolves once the file descriptor is closed.
+     */
+    this.close = async function () {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.close(file.fd, (err) => {
+                resolve();
+            });
+        });
+    };
+
+    /**
+     * Moves the file to a new path.
+     *
+     * @param {string} newPath - The new path where the file will be moved.
+     * @return {boolean} Returns true if the file was successfully moved, otherwise returns false.
+     */
+    this.move = async function (newPath) {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.rename(file._path, newPath, (err) => {
+                if (!err) resolve(true);
+                else resolve(false);
+            });
+        });
+    };
+
+    /**
+     * Deletes the file associated with this object.
+     *
+     */
+    this.delete = async function () {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.rm(file._path, (err) => {
+                resolve();
+            });
+        });
+    };
+};
 
 globalThis.url2Proxy = async function (type, url, headers) {
     let hd = Object.keys(headers).length == 0 ? '_' : encodeURIComponent(JSON.stringify(headers));
