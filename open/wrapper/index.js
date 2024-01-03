@@ -301,6 +301,7 @@ globalThis.JSProxyStream = function () {
     this.error = async function (err) {};
 };
 
+
 /**
  * Creates a new JSFile object with the specified path.
  *
@@ -327,6 +328,12 @@ globalThis.JSFile = function (path) {
     this.open = async function (mode) {
         const file = this;
         return await new Promise((resolve, reject) => {
+            if (mode == 'w' || mode == 'a') {
+                const directoryPath = dirname(file._path);
+                if (!fs.existsSync(directoryPath)) {
+                    fs.mkdirSync(directoryPath, { recursive: true });
+                }
+            }
             fs.open(file._path, mode, null, (e, f) => {
                 if (!e) file.fd = f;
                 if (file.fd) resolve(true);
@@ -374,6 +381,13 @@ globalThis.JSFile = function (path) {
     };
 
     /**
+     * Flush buffers to disk.
+     */
+    this.flush = async function () {
+        return;
+    };
+
+    /**
      * Closes the file descriptor.
      *
      * @return {Promise<void>} A promise that resolves once the file descriptor is closed.
@@ -391,12 +405,28 @@ globalThis.JSFile = function (path) {
      * Moves the file to a new path.
      *
      * @param {string} newPath - The new path where the file will be moved.
-     * @return {boolean} Returns true if the file was successfully moved, otherwise returns false.
+     * @return {Promise<boolean>} A promise that resolves with `true` if the file was successfully moved, otherwise returns false.
      */
     this.move = async function (newPath) {
         const file = this;
         return await new Promise((resolve, reject) => {
             fs.rename(file._path, newPath, (err) => {
+                if (!err) resolve(true);
+                else resolve(false);
+            });
+        });
+    };
+
+    /**
+     * Copies the file to a new path.
+     *
+     * @param {string} newPath - The path of the new location where the file will be copied.
+     * @return {Promise<boolean>} A promise that resolves with `true` if the file is successfully copied, and `false` otherwise.
+     */
+    this.copy = async function (newPath) {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.copyFile(file._path, newPath, (err) => {
                 if (!err) resolve(true);
                 else resolve(false);
             });
@@ -415,18 +445,39 @@ globalThis.JSFile = function (path) {
             });
         });
     };
+
+    /**
+     * Checks if the file exists.
+     *
+     * @return {Promise<boolean>} A promise that resolves to a boolean value indicating whether the file exists or not.
+     */
+    this.exist = async function () {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.exists(file._path, (stat) => {
+                resolve(stat);
+            });
+        });
+    };
+
+    /**
+     * @returns the file length
+     */
+    this.size = async function () {
+        const file = this;
+        return await new Promise((resolve, reject) => {
+            fs.stat(file._path, (err, stat) => {
+                if (err) {
+                    resolve(0);
+                } else {
+                    resolve(stat.size);
+                }
+            });
+        });
+    };
 };
 
-globalThis.url2Proxy = async function (type, url, headers) {
-    let hd = Object.keys(headers).length == 0 ? '_' : encodeURIComponent(JSON.stringify(headers));
-    let uri = new Uri(url);
-    let path = uri.path();
-    path = path.substring(path.lastIndexOf('/'));
-    let ext = path.indexOf('.') >= 0 ? path.substring(path.indexOf('.')) : '.bin';
-    return 'http://127.0.0.1:13333/up/' + randStr(6) + '/' + type + '/' + hd + '/' + encodeURIComponent(url) + '/' + ext;
-};
-
-globalThis.js2Proxy = async function (dynamic, siteType, site, url, headers) {
+globalThis.js2Proxy = function (dynamic, siteType, site, url, headers) {
     let hd = Object.keys(headers).length == 0 ? '_' : encodeURIComponent(JSON.stringify(headers));
     return (dynamic ? 'js2p://_WEB_/' : 'http://127.0.0.1:13333/jp/') + randStr(6) + '/' + siteType + '/' + site + '/' + hd + '/' + encodeURIComponent(url);
 };
