@@ -22,10 +22,26 @@
   "read": {
       "sites": [
           {
+              "key": "13bqg",
+              "name": "笔趣阁",
+              "type": 10,
+              "api": "assets://js/13bqg_open.js"
+          },        
+          {
               "key": "bookan",
               "name": "博看听书",
               "type": 10,
               "api": "assets://js/bookan_open.js"
+          }
+      ]
+  },
+  "comic": {
+      "sites": [
+          {
+              "key": "copymanga",
+              "name": "拷贝漫画",
+              "type": 20,
+              "api": "assets://js/copymanga_open.js"
           }
       ]
   },
